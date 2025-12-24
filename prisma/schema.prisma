@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id            String              @id @default(cuid())
+  patientName   String
+  sessionDate   DateTime
+  signed        Boolean             @default(false)
+  signedAt      DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  transcript    TranscriptSegment[]
+  note          NoteSpan[]
+}
+
+model TranscriptSegment {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  speaker   String // 'clinician' or 'patient'
+  text      String
+  startMs   Int
+  endMs     Int
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+}
+
+model NoteSpan {
+  id                 String   @id @default(cuid())
+  sessionId          String
+  session            Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  section            String // 'subjective', 'objective', 'assessment', 'plan'
+  text               String
+  citations          String // JSON array of transcript segment IDs
+  needsConfirmation  Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([sessionId])
+}
