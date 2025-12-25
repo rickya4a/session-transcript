@@ -14,7 +14,7 @@ A Next.js application that demonstrates evidence-backed clinical note documentat
 - **Edit Mode**: Inline editing of note spans with save functionality - changes persist to database
 - **Bidirectional Linking**: Click transcript segments to highlight which note spans cite them
 - **Sign Note Flow**: Modal confirmation dialog with database persistence
-- **Persist to Database**: Prisma + SQLite with full CRUD API - all changes saved automatically
+- **Persist to Database**: Prisma + PostgreSQL with full CRUD API - changes saved when user clicks Save
 - **Keyboard Navigation**: Use arrow keys (↑/↓) to navigate between note spans, Enter to view citations
 - **Accessibility**: ARIA labels, focus management, keyboard support, and screen reader friendly
 
@@ -23,7 +23,7 @@ A Next.js application that demonstrates evidence-backed clinical note documentat
 - **Framework**: Next.js 14.2 (App Router)
 - **Language**: TypeScript 5
 - **Runtime**: Node.js 18+
-- **Database**: Prisma ORM + SQLite
+- **Database**: Prisma ORM + PostgreSQL
 - **Styling**: Tailwind CSS v3.4
 - **UI Components**: shadcn/ui (Radix UI primitives)
 - **Icons**: Lucide React
@@ -57,38 +57,57 @@ npx prisma generate
 npx prisma migrate reset
 ```
 
-## Key Design Decisions
+## Approach and Key Decisions
 
 ### 1. Component Architecture
-- **Separation of Concerns**: Split into presentational components (TranscriptPanel, NotePanel) and container component (SessionView)
-- **State Management**: Centralized state in SessionView for coordinating interactions between panels
-- **Reusability**: Components accept props for data and callbacks, making them reusable and testable
+**Decision**: Separation of concerns with presentational and container components
 
-### 2. Citation Linking Logic
-- **Forward Linking (Note -> Transcript)**: Note spans store citation arrays referencing transcript segment IDs
-- **Reverse Linking (Transcript -> Note)**: Dynamic lookup to find all notes citing a segment
-- **Highlighting States**: 
+- **Presentational Components** (`TranscriptPanel`, `NotePanel`): Focus solely on rendering UI, accept data via props
+- **Container Component** (`SessionView`): Manages state and coordinates interactions between panels
+- **Rationale**: This pattern makes components reusable, testable, and easier to reason about. State management is centralized, making data flow predictable.
+
+### 2. Citation Linking Strategy
+**Decision**: ID-based bidirectional linking with dynamic reverse lookup
+
+- **Forward Linking (Note -> Transcript)**: Note spans store citation arrays with transcript segment IDs
+- **Reverse Linking (Transcript -> Note)**: Dynamic lookup searches all notes to find which ones cite a segment
+- **State Management**: 
   - `highlightedSegments`: Array of transcript IDs to highlight
   - `activeSegmentId`: Single segment to scroll into view
-  - `highlightedNotes`: Array of note IDs to highlight
   - `activeNoteId`: Single note to scroll into view
+- **Rationale**: Using IDs instead of indices makes references robust and allows for dynamic relationships. Bidirectional linking enhances discoverability and trust verification.
 
-### 3. User Experience Decisions
+### 3. User Experience Design
+**Decision**: Clinical workflow-focused with accessibility-first approach
+
 - **Smooth Scrolling**: `scrollIntoView` with smooth behavior for better visual feedback
-- **Visual Hierarchy**: Color-coded badges for speakers, sections, and confirmation status
-- **Keyboard Shortcuts**: Arrow keys for navigation, Enter for action - familiar patterns
-- **Responsive Design**: Grid layout adapts to screen size (stacked on mobile, side-by-side on desktop)
+- **Visual Hierarchy**: Color-coded badges (blue=Clinician, green=Patient, amber=needs confirmation)
+- **Keyboard Navigation**: Arrow keys (↑/↓) for navigation, Enter for action
+- **Responsive Design**: Mobile-first with tab navigation on small screens, split-view on desktop
+- **Rationale**: Clinicians need efficient workflows. Keyboard shortcuts and clear visual feedback reduce cognitive load. Mobile support ensures accessibility across devices.
 
-### 4. Accessibility Considerations
-- **Aria Labels**: Descriptive labels for all interactive elements
-- **Keyboard Navigation**: Full keyboard support without mouse
-- **Focus Management**: Visible focus indicators and proper tab order
-- **Screen Reader Support**: Semantic HTML and descriptive text alternatives
+### 4. Data Persistence Strategy
+**Decision**: Manual save with immediate database persistence
 
-### 5. Data Model
-- **Immutable Data**: Session data stored separately, updated through callbacks
-- **Citation by ID**: Using string IDs instead of indices for robust referencing
-- **needs_confirmation Flag**: Simple boolean to identify unsupported claims
+- **Save on Demand**: User clicks "Save" button to persist edits to database via PATCH API
+- **Immediate Persistence**: Once saved, changes are immediately written to database
+- **Error Handling**: Error messages displayed via browser alert() notifications
+- **Rationale**: Explicit save action gives users control over when changes are committed. Immediate persistence after save ensures data consistency and prevents data loss on page refresh.
+
+### 5. Database Schema Design
+**Decision**: Normalized schema with JSON storage for flexible citations
+
+- **Relationships**: One-to-many (Session → TranscriptSegments, Session → NoteSpans)
+- **Citations Storage**: JSON array of IDs in `NoteSpan.citations` field
+- **Cascade Delete**: Deleting session removes all related data
+- **Rationale**: Normalized structure ensures data integrity. JSON for citations allows flexibility while maintaining referential integrity through application logic.
+
+### 6. Type Safety and Developer Experience
+**Decision**: Full TypeScript with shared type definitions
+
+- **Centralized Types**: All interfaces in `types/index.ts`
+- **Type-safe API**: Prisma-generated types with manual transformation for frontend
+- **Rationale**: Type safety catches errors at compile time, reduces bugs, and improves developer experience with better IDE support.
 
 ## How It Works
 
@@ -103,8 +122,8 @@ npx prisma migrate reset
 1. User clicks a transcript segment
 2. `onSegmentClick` callback fires with segment ID
 3. SessionView searches all notes for citations matching the segment
-4. Updates `highlightedNotes` with matching note IDs
-5. NotePanel highlights related notes
+4. Updates `activeNoteId` with the first matching note ID
+5. NotePanel highlights and scrolls to the related note
 
 ### Keyboard Navigation
 - **↑/↓ Arrow Keys**: Navigate between note spans sequentially
@@ -120,7 +139,7 @@ npx prisma migrate reset
 6. Signed badge replaces the Sign button
 
 ### Database Persistence
-- **Edit Note**: Changes automatically save to SQLite database via PATCH API
+- **Edit Note**: Changes save to database via PATCH API when user clicks Save button
 - **Sign Note**: Signature and timestamp persist to database
 - **Data Survives**: All changes survive page refresh
 - **API Routes**: 
@@ -154,27 +173,80 @@ npx prisma migrate reset
 
 ## What I Would Improve With More Time
 
-### Implemented ✅
-- ~~Database Integration~~ ✅ Prisma + SQLite
-- ~~Edit Mode~~ ✅ Inline editing with save
-- ~~Sign Note Persistence~~ ✅ Saves to database
+### Feature Enhancements
+- **Audio Playback**: Synchronized audio playback with transcript timestamps for better context
+- **Full-Text Search**: Search functionality across transcript and notes with highlighting
+- **Multi-Session Management**: List view of all sessions with filtering and sorting
+- **Session Comparison**: Side-by-side comparison of multiple sessions
+- **Export Functionality**: PDF generation for signed notes with proper formatting
+- **Version History**: Track all changes to notes with ability to view and restore previous versions
+- **Real-time Collaboration**: Multiple users viewing/editing with presence indicators
+- **Bulk Operations**: Select and edit multiple note spans at once
 
-### Future Enhancements
-- **PostgreSQL**: Switch from SQLite for production
-- **Audio Playback**: Synchronized with transcript timestamps
-- **Search**: Full-text search in transcript and notes
-- **Multi-Session**: List and compare multiple sessions
-- **Export**: PDF generation for signed notes
-- **Real-time Collaboration**: Multiple users viewing/editing
-- **Version History**: Track changes to notes over time
+### Technical Improvements
+- **Testing**: Add unit tests for components and integration tests for API routes
+- **Performance Optimization**: Implement virtual scrolling for large transcripts, memoization for expensive computations
+- **Caching Strategy**: Add Redis for session caching, implement API response caching
+- **Authentication**: Add user authentication and authorization (NextAuth.js)
+- **Audit Logging**: Track all changes with user attribution and timestamps
+- **API Rate Limiting**: Protect API endpoints from abuse
+- **WebSocket Support**: Real-time updates for collaborative editing
 
-## AI Tool Usage
+### UX Improvements
+- **Undo/Redo**: Implement undo/redo functionality for note edits
+- **Keyboard Shortcuts Panel**: Help modal showing all available keyboard shortcuts
+- **Customizable Layout**: Allow users to resize panels and save preferences
+- **Dark Mode**: Full dark mode support with system preference detection
+- **Accessibility Audit**: Comprehensive accessibility audit and improvements based on WCAG 2.1 AA standards
 
-AI tools (Claude, GitHub Copilot) accelerated development significantly:
-- **Boilerplate**: Component structure, TypeScript types
-- **Mock Data**: Realistic behavioral health conversation
-- **API Routes**: CRUD operations and error handling
-- **Documentation**: Initial structure and examples
+## How I Used AI Tools and What I Learned
 
-### Key Learning
-AI tools are excellent for accelerating implementation of well-defined tasks, but architectural decisions and UX design require human judgment. The most effective approach is using AI for rapid iteration while maintaining critical thinking about design tradeoffs.
+### How AI Accelerated Development
+
+#### 1. **Boilerplate and Scaffolding**
+- **Component Structure**: AI generated initial component skeletons with proper TypeScript types
+- **API Routes**: Generated CRUD API routes with proper error handling and type safety
+- **Prisma Schema**: Assisted in designing database schema with proper relationships
+
+#### 2. **Implementation Details**
+- **State Management**: AI helped design the state management pattern for bidirectional linking
+- **Citation Logic**: Collaborated on the citation linking algorithm and highlighting mechanism
+- **Responsive Design**: AI suggested mobile-first responsive patterns and tab navigation approach
+
+#### 3. **Code Quality**
+- **Error Handling**: Generated comprehensive error handling patterns for API routes
+- **Accessibility**: AI suggested ARIA labels and keyboard navigation patterns
+
+### What I Learned
+
+#### **AI is Excellent For:**
+- **Rapid Prototyping**: Quickly generating working code for well-defined requirements
+- **Boilerplate Generation**: Creating repetitive code structures (components, API routes, types)
+- **Pattern Implementation**: Implementing common patterns (CRUD operations, form handling)
+- **Debugging**: Identifying and fixing common errors and type mismatches
+- **Documentation**: Generating initial documentation structure and examples
+
+#### **AI Requires Human Judgment For:**
+- **Architectural Decisions**: Component structure, state management patterns, data flow design
+- **UX Design**: User experience decisions, interaction patterns, visual hierarchy
+- **Trade-offs**: Performance vs. complexity, features vs. scope, technical debt decisions
+- **Domain Knowledge**: Clinical workflow understanding, healthcare-specific requirements
+- **Code Review**: Ensuring code quality, security, and maintainability
+
+#### **Most Effective Approach:**
+The most productive workflow was using AI as a **collaborative partner** rather than a replacement for thinking:
+
+1. **Define the Problem**: Clearly articulate what needs to be built
+2. **Design the Solution**: Make architectural and UX decisions first
+3. **Use AI for Implementation**: Generate code based on the design
+4. **Review and Refine**: Critically review AI-generated code, test, and iterate
+5. **Learn and Adapt**: Understand why AI made certain choices, learn from patterns
+
+### Key Insight
+AI tools dramatically accelerate development when used thoughtfully, but they don't replace the need for:
+- **Critical Thinking**: Evaluating AI suggestions and making informed decisions
+- **Domain Expertise**: Understanding clinical workflows and user needs
+- **Code Quality**: Ensuring maintainability, security, and performance
+- **User Experience**: Designing intuitive interactions that feel natural
+
+The best results came from **iterative collaboration** - using AI to generate initial implementations, then refining based on testing, user feedback, and architectural considerations.
