@@ -63,22 +63,22 @@ export function NotePanel({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-4 border-b bg-muted/50">
-        <h2 className="text-lg font-semibold">Clinical Note (SOAP Format)</h2>
-        <p className="text-sm text-muted-foreground mt-1">
+      <div className="p-3 lg:p-4 border-b bg-muted/50">
+        <h2 className="text-base lg:text-lg font-semibold">Clinical Note (SOAP Format)</h2>
+        <p className="text-xs lg:text-sm text-muted-foreground mt-1">
           Click on a citation to view supporting evidence
         </p>
       </div>
       <div className="flex-1 overflow-y-auto">
-        <div className="p-6 space-y-8">
+        <div className="p-4 lg:p-6 space-y-6 lg:space-y-8">
           {sections.map((section) => {
             const notes = groupedNotes[section] || [];
             if (notes.length === 0) return null;
 
             return (
-              <div key={section} className="space-y-4">
+              <div key={section} className="space-y-3 lg:space-y-4">
                 <div>
-                  <h3 className="text-xl font-bold capitalize text-primary">
+                  <h3 className="text-lg lg:text-xl font-bold capitalize text-primary">
                     {sectionTitles[section]}
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -86,7 +86,7 @@ export function NotePanel({
                   </p>
                   <Separator className="mt-2" />
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-2.5 lg:space-y-3">
                   {notes.map((note, index) => {
                     const isActive = activeNoteId === note.id;
                     const hasCitations = note.citations.length > 0;
@@ -98,7 +98,7 @@ export function NotePanel({
                           noteRefs.current[note.id] = el;
                         }}
                         className={cn(
-                          'p-4 rounded-lg border transition-all',
+                          'p-3 lg:p-4 rounded-lg border transition-all',
                           'group relative',
                           isActive && 'ring-2 ring-primary shadow-lg',
                           note.needs_confirmation
@@ -110,17 +110,17 @@ export function NotePanel({
                         role="article"
                         aria-label={`Note: ${note.text}${note.needs_confirmation ? ' - Needs confirmation' : ''}`}
                       >
-                        <div className="flex items-start gap-3">
-                          <span className="text-sm text-muted-foreground font-medium min-w-[20px]">
+                        <div className="flex items-start gap-2 lg:gap-3">
+                          <span className="text-xs lg:text-sm text-muted-foreground font-medium min-w-[16px] lg:min-w-[20px]">
                             {index + 1}.
                           </span>
-                          <div className="flex-1 space-y-2">
+                          <div className="flex-1 space-y-1.5 lg:space-y-2">
                             {editingNoteId === note.id ? (
                               <div className="space-y-2">
                                 <textarea
                                   value={editText}
                                   onChange={(e) => setEditText(e.target.value)}
-                                  className="w-full text-sm p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                                  className="w-full text-xs lg:text-sm p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                                   rows={3}
                                   autoFocus
                                 />
@@ -132,7 +132,7 @@ export function NotePanel({
                                       }
                                       setEditingNoteId(null);
                                     }}
-                                    className="text-xs px-3 py-1 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 flex items-center gap-1"
+                                    className="text-xs px-2.5 lg:px-3 py-1 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 flex items-center gap-1"
                                   >
                                     <Save className="w-3 h-3" />
                                     Save
@@ -142,7 +142,7 @@ export function NotePanel({
                                       setEditingNoteId(null);
                                       setEditText('');
                                     }}
-                                    className="text-xs px-3 py-1 border rounded-md hover:bg-muted flex items-center gap-1"
+                                    className="text-xs px-2.5 lg:px-3 py-1 border rounded-md hover:bg-muted flex items-center gap-1"
                                   >
                                     <X className="w-3 h-3" />
                                     Cancel
@@ -151,14 +151,14 @@ export function NotePanel({
                               </div>
                             ) : (
                               <div className="flex items-start justify-between gap-2">
-                                <p className="text-sm leading-relaxed flex-1">{note.text}</p>
+                                <p className="text-xs lg:text-sm leading-relaxed flex-1">{note.text}</p>
                                 {editMode && (
                                   <button
                                     onClick={() => {
                                       setEditingNoteId(note.id);
                                       setEditText(note.text);
                                     }}
-                                    className="text-xs p-1 hover:bg-muted rounded transition-colors"
+                                    className="text-xs p-1 hover:bg-muted rounded transition-colors shrink-0"
                                     aria-label="Edit note"
                                   >
                                     <Edit2 className="w-3 h-3 text-muted-foreground" />
@@ -166,21 +166,22 @@ export function NotePanel({
                                 )}
                               </div>
                             )}
-                            <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center gap-1.5 lg:gap-2 flex-wrap">
                               {note.needs_confirmation ? (
                                 <Badge
                                   variant="outline"
-                                  className="text-xs bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300"
+                                  className="text-[10px] lg:text-xs bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300"
                                 >
-                                  <AlertCircle className="w-3 h-3 mr-1" />
-                                  Needs Confirmation
+                                  <AlertCircle className="w-2.5 h-2.5 lg:w-3 lg:h-3 mr-0.5 lg:mr-1" />
+                                  <span className="hidden sm:inline">Needs Confirmation</span>
+                                  <span className="sm:hidden">Unconfirmed</span>
                                 </Badge>
                               ) : (
                                 <Badge
                                   variant="outline"
-                                  className="text-xs bg-green-50 text-green-700 border-green-300 dark:bg-green-950 dark:text-green-300"
+                                  className="text-[10px] lg:text-xs bg-green-50 text-green-700 border-green-300 dark:bg-green-950 dark:text-green-300"
                                 >
-                                  <CheckCircle className="w-3 h-3 mr-1" />
+                                  <CheckCircle className="w-2.5 h-2.5 lg:w-3 lg:h-3 mr-0.5 lg:mr-1" />
                                   Supported
                                 </Badge>
                               )}
@@ -188,7 +189,7 @@ export function NotePanel({
                                 <button
                                   onClick={() => onCitationClick(note.citations)}
                                   className={cn(
-                                    'text-xs px-2 py-1 rounded-md',
+                                    'text-[10px] lg:text-xs px-1.5 lg:px-2 py-0.5 lg:py-1 rounded-md',
                                     'bg-primary/10 hover:bg-primary/20',
                                     'text-primary font-medium',
                                     'transition-colors cursor-pointer',
@@ -199,8 +200,8 @@ export function NotePanel({
                                   {note.citations.length} Citation{note.citations.length > 1 ? 's' : ''}
                                 </button>
                               ) : (
-                                <span className="text-xs text-muted-foreground italic">
-                                  No supporting transcript
+                                <span className="text-[10px] lg:text-xs text-muted-foreground italic">
+                                  No transcript
                                 </span>
                               )}
                             </div>

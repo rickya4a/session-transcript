@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { Badge } from './ui/badge';
-import { CheckCircle, FileText, User, Calendar, Edit3 } from 'lucide-react';
+import { CheckCircle, FileText, User, Calendar, Edit3, MessageSquare, ClipboardList } from 'lucide-react';
 
 interface SessionViewProps {
   session: Session;
@@ -45,12 +45,15 @@ export function SessionView({ session, onSessionUpdate }: SessionViewProps) {
   const [localSession, setLocalSession] = useState(session);
   const [focusedNoteIndex, setFocusedNoteIndex] = useState(0);
   const [editMode, setEditMode] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'transcript' | 'note'>('note');
 
   // Citation click handler (Note -> Transcript)
   const handleCitationClick = useCallback((citations: string[]) => {
     setHighlightedSegments(citations);
     if (citations.length > 0) {
       setActiveSegmentId(citations[0]);
+      // Auto-switch to transcript tab on mobile
+      setMobileTab('transcript');
     }
   }, []);
 
@@ -65,6 +68,8 @@ export function SessionView({ session, onSessionUpdate }: SessionViewProps) {
     
     if (relatedNoteIds.length > 0) {
       setActiveNoteId(relatedNoteIds[0]);
+      // Auto-switch to note tab on mobile
+      setMobileTab('note');
     }
   }, [localSession.note]);
 
@@ -167,73 +172,130 @@ export function SessionView({ session, onSessionUpdate }: SessionViewProps) {
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
       <div className="border-b bg-card">
-        <div className="p-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-primary" />
-              <h1 className="text-xl font-bold">Session Detail</h1>
+        <div className="p-3 lg:p-4">
+          {/* Title and Actions Row */}
+          <div className="flex items-center justify-between gap-3 mb-2 lg:mb-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <FileText className="w-5 h-5 text-primary shrink-0" />
+              <h1 className="text-lg lg:text-xl font-bold truncate">Session Detail</h1>
             </div>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <User className="w-4 h-4" />
-                <span>{session.patient_name}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4" />
-                <span>{new Date(session.session_date).toLocaleDateString()}</span>
-              </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {localSession.signed ? (
+                <Badge className="bg-green-500 hover:bg-green-600">
+                  <CheckCircle className="w-4 h-4 lg:mr-1" />
+                  <span className="hidden sm:inline">Signed</span>
+                </Badge>
+              ) : (
+                <>
+                  <Button
+                    onClick={() => setEditMode(!editMode)}
+                    variant={editMode ? "default" : "outline"}
+                    size="sm"
+                    className={editMode ? "bg-blue-500 hover:bg-blue-600" : ""}
+                  >
+                    <Edit3 className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">{editMode ? 'Exit Edit' : 'Edit'}</span>
+                  </Button>
+                  <Button
+                    onClick={() => setShowSignDialog(true)}
+                    size="sm"
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    <CheckCircle className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Sign</span>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            {localSession.signed ? (
-              <Badge className="bg-green-500 hover:bg-green-600">
-                <CheckCircle className="w-4 h-4 mr-1" />
-                Signed
+
+          {/* Patient Info Row */}
+          <div className="flex items-center gap-3 lg:gap-4 text-xs lg:text-sm text-muted-foreground flex-wrap">
+            <div className="flex items-center gap-1.5 lg:gap-2">
+              <User className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+              <span className="truncate max-w-[150px] lg:max-w-none">{session.patient_name}</span>
+            </div>
+            <div className="flex items-center gap-1.5 lg:gap-2">
+              <Calendar className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+              <span>{new Date(session.session_date).toLocaleDateString()}</span>
+            </div>
+            {!localSession.signed && unsupportedClaims.length > 0 && (
+              <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-300 text-xs">
+                {unsupportedClaims.length} claim{unsupportedClaims.length > 1 ? 's' : ''} need confirmation
               </Badge>
-            ) : (
-              <>
-                {unsupportedClaims.length > 0 && (
-                  <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-300">
-                    {unsupportedClaims.length} claim{unsupportedClaims.length > 1 ? 's' : ''} need confirmation
-                  </Badge>
-                )}
-                <Button
-                  onClick={() => setEditMode(!editMode)}
-                  variant={editMode ? "default" : "outline"}
-                  className={editMode ? "bg-blue-500 hover:bg-blue-600" : ""}
-                >
-                  <Edit3 className="w-4 h-4 mr-2" />
-                  {editMode ? 'Exit Edit' : 'Edit Mode'}
-                </Button>
-                <Button
-                  onClick={() => setShowSignDialog(true)}
-                  className="bg-primary hover:bg-primary/90"
-                >
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Sign Note
-                </Button>
-              </>
             )}
           </div>
         </div>
       </div>
 
+      {/* Mobile Tab Navigation */}
+      <div className="lg:hidden border-b bg-card">
+        <div className="flex">
+          <button
+            onClick={() => setMobileTab('transcript')}
+            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+              mobileTab === 'transcript'
+                ? 'text-primary border-b-2 border-primary bg-primary/5'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            }`}
+          >
+            <MessageSquare className="w-4 h-4" />
+            Transcript
+          </button>
+          <button
+            onClick={() => setMobileTab('note')}
+            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+              mobileTab === 'note'
+                ? 'text-primary border-b-2 border-primary bg-primary/5'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            }`}
+          >
+            <ClipboardList className="w-4 h-4" />
+            Clinical Note
+          </button>
+        </div>
+      </div>
+
       {/* Main Content - Split View */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 overflow-hidden">
-        <TranscriptPanel
-          segments={session.transcript}
-          highlightedSegments={highlightedSegments}
-          onSegmentClick={handleSegmentClick}
-          activeSegmentId={activeSegmentId}
-        />
-        <NotePanel
-          noteSpans={localSession.note}
-          onCitationClick={handleCitationClick}
-          activeNoteId={activeNoteId}
-          onNoteSpanFocus={handleNoteSpanFocus}
-          onNoteUpdate={handleNoteUpdate}
-          editMode={editMode}
-        />
+      <div className="flex-1 overflow-hidden">
+        {/* Desktop: Side by Side */}
+        <div className="hidden lg:grid lg:grid-cols-2 h-full">
+          <TranscriptPanel
+            segments={session.transcript}
+            highlightedSegments={highlightedSegments}
+            onSegmentClick={handleSegmentClick}
+            activeSegmentId={activeSegmentId}
+          />
+          <NotePanel
+            noteSpans={localSession.note}
+            onCitationClick={handleCitationClick}
+            activeNoteId={activeNoteId}
+            onNoteSpanFocus={handleNoteSpanFocus}
+            onNoteUpdate={handleNoteUpdate}
+            editMode={editMode}
+          />
+        </div>
+
+        {/* Mobile: Tabbed View */}
+        <div className="lg:hidden h-full">
+          {mobileTab === 'transcript' ? (
+            <TranscriptPanel
+              segments={session.transcript}
+              highlightedSegments={highlightedSegments}
+              onSegmentClick={handleSegmentClick}
+              activeSegmentId={activeSegmentId}
+            />
+          ) : (
+            <NotePanel
+              noteSpans={localSession.note}
+              onCitationClick={handleCitationClick}
+              activeNoteId={activeNoteId}
+              onNoteSpanFocus={handleNoteSpanFocus}
+              onNoteUpdate={handleNoteUpdate}
+              editMode={editMode}
+            />
+          )}
+        </div>
       </div>
 
       {/* Sign Note Dialog */}
@@ -299,8 +361,7 @@ export function SessionView({ session, onSessionUpdate }: SessionViewProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Keyboard shortcuts hint */}
-      <div className="border-t bg-muted/50 px-4 py-2">
+      <div className="hidden lg:block border-t bg-muted/50 px-4 py-2">
         <p className="text-xs text-muted-foreground text-center">
           Keyboard shortcuts: <kbd className="px-1.5 py-0.5 bg-background border rounded text-xs">↑</kbd> / <kbd className="px-1.5 py-0.5 bg-background border rounded text-xs">↓</kbd> Navigate notes • <kbd className="px-1.5 py-0.5 bg-background border rounded text-xs">Enter</kbd> View citations
         </p>
